@@ -2,60 +2,65 @@
 import numpy as np
 import theano
 import theano.tensor as T
-
-
-def intitialise_weights(inputs, outputs, scale=0.1):
-    return theano.shared(scale*np.random.randn(inputs, outputs))
+import util as u
 
 
 class RenCell:
+    """ The Core Recurrent Entity Network Cell.
+    """
 
-    def __init__(self, emb_dim, num_slots, activation=T.nnet.tanh):
+
+    def __init__(self, emb_dim, num_slots, activation=T.nnet.sigmoid):
         """Initialise all the paramters as shared variables"""
-        self.num_slots = num_slots
+        self.num_slots = num_slots  # M
         self.activation = activation
-        self.emb_dim = emb_dim
-        self.w = self._initialize_weights(num_slots*emb_dim, 1, name='keys')
-        self.h_init = self._initialize_weights(num_slots*emb_dim, 1, name='h_init')
+        self.emb_dim = emb_dim  # J
+
+        # Initialise Parameters
         self.U = self._initialize_weights(emb_dim, emb_dim, name='U')
         self.V = self._initialize_weights(emb_dim, emb_dim, name='V')
         self.W = self._initialize_weights(emb_dim, emb_dim, name='W')
 
-    def _intitialise_weights(inputs, outputs, name=None, scale=0.1):
+    def _initialize_weights(self, inputs, outputs, name=None, scale=0.1):
         return theano.shared(scale*np.random.randn(inputs, outputs), name=name)
 
-    def _slice(self, item, slot):
-        return item[slot*self.emb_dim:slot*self.emb_dim + self.emb_dim, :]
+    def _get_gate(self, S_t, H, Keys):
+        S_t = S_t.dimshuffle([0, 'x', 1])
+        return T.nnet.sigmoid(T.sum(H*S_t + Keys*S_t, axis=2, keepdims=True))
 
-    def _normalize(vector):
-        return vector/T.norm(vector)
+    def _get_candidate(self, S_t, H, Keys):
+        return self.activation(T.dot(S_t, self.U) + T.dot(H, self.V) +
+                               T.dot(Keys, self.W))
 
-    def __call__(self, inputs):
+    def _update_memory(self, H, _H, gate):
+        _H_prime = H + gate*_H
+        return _H_prime/(_H_prime.norm(2, axis=1).dimshuffle([0, 1, 'x']))
+
+    def __call__(self, inputs, init_state, init_keys):
+        """ Take mini-bath of inputs and return final sate of the REN Cell
+        Inputs - (Time_steps, N, emb_dim) matrix
+        """
 
         N = T.shape(inputs)[0]
+        assert((T.shape(init_state) == (N, self.num_slots, self.emb_dim)),
+               """The dimensions of the hidden state needs to be (batch_size,
+                  num_slots, embd_dim)""")
 
-        def REN_step(S_t, h_tm1, keys, U, V, W):
-            """ Take mini-bath of inputs and return final sate of the REN Cell
-            Inputs - (Time_steps N, emb_dim) matrix
-            """
+        def REN_step(S_t, H_tm1, Keys, U, V, W):
+            """ Perfrom one step of the RNN updates"""
 
-            h_t = T.zeros_like(h_tm1)
-            for slot in range(self.num_slots):
-                h_j = self._slice(h_tm1, slot)
-                w_j = self._slice(keys, slot)
-                gate = T.nnet.sigmoid(T.dot(S_t, h_j) + T.dot(S_t, w_j))  # should be (N,1)
-                _h_j = self.activation(T.dot(S_t, self.U) + T.dot(h_j, self.V) + T.dot(w_j, self.V))  # should be (N,emb_dim)
-                h_j = h_j + gate*_h_j  # need to get the broadcasting right here
-                h_j = self._normalize(h_j)
-                h_t[slot*self.emb_dim:slot*self.emb_dim + self.emb_dim, :] = h_j
+            gate = self._get_gate(S_t, H_tm1, Keys)  # should be (N,emb_dim)
 
-            return h_t, h_t
+            _H = self._get_candidate(S_t, H_tm1, Keys)  # should be (N,emb_dim)
+
+            H = self._update_memory(H_tm1, _H, gate)
+
+            return H
 
         Y_vals, updates = theano.scan(REN_step,
-                                                 sequences=inputs,
-                                                 non_sequences=[self.w, self.U, self.V, self.W],
-                                                 outputs_info=[T.outer(T.ones((N,1)), self.h_init), None]
-                                                 )
+                                      sequences=inputs,
+                                      outputs_info=[init_state],
+                                      non_sequences=[init_keys, self.U, self.V, self.W],
+                                      )
 
-
-        return Y_vals[-1]
+        return Y_vals[-1], updates
