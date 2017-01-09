@@ -29,12 +29,12 @@ class RenCell:
         return T.nnet.sigmoid(T.sum(H*S_t + Keys*S_t, axis=2, keepdims=True))
 
     def _get_candidate(self, S_t, H, Keys):
-        return self.activation(T.dot(S_t, self.U) + T.dot(H, self.V) +
-                               T.dot(Keys, self.W))
+        return self.activation(T.dot(S_t, self.U).dimshuffle([0, 'x', 1]) +
+                               T.dot(H, self.V) + T.dot(Keys, self.W))
 
     def _update_memory(self, H, _H, gate):
         _H_prime = H + gate*_H
-        return _H_prime/(_H_prime.norm(2, axis=1).dimshuffle([0, 1, 'x']))
+        return _H_prime/(_H_prime.norm(2, axis=2).dimshuffle([0, 1, 'x']))
 
     def __call__(self, inputs, init_state, init_keys):
         """ Take mini-bath of inputs and return final sate of the REN Cell
@@ -42,7 +42,7 @@ class RenCell:
         """
 
         N = T.shape(inputs)[0]
-        assert((T.shape(init_state) == (N, self.num_slots, self.emb_dim)),
+        assert(T.shape(init_state) == (N, self.num_slots, self.emb_dim),
                """The dimensions of the hidden state needs to be (batch_size,
                   num_slots, embd_dim)""")
 
