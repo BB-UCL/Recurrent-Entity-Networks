@@ -4,12 +4,6 @@ import theano
 import theano.tensor as T
 import REN.REN_Cell as Cell
 
-def setup():
-    print "SETUP!"
-
-def teardown():
-    print "TEAR DOWN!"
-
 def test_basic():
     print "I RAN!"
 
