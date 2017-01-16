@@ -4,43 +4,79 @@ import theano.tensor as T
 import numpy as np
 
 
-def model(emb_dim, vocab_size, num_slots):
+class EntityNetwork():
 
-    # Placeholders for input
-    Stories = T.itensor3(name='Stories')  # Num_stories x T_max x K_max
-    Queries = T.imatrix3(name='Queries') # Num_stories X K_max
-    answers = T.imatrix3(name='Answers')
-    N = T.shape(Stories)[0]
-    K = T.shape(Stories)[2]  # max_sent_len
-    T = T.shape(Stories)[1]  # max_story_len
+    def __init__(self, emb_dim, vocab_size, num_slots):
+        self.emb_dim = emb_dim
+        self.vocab_size = vocab_size
+        self.num_slots = num_slots  # num of hdn state units.
+        self.cell = RenCell(self.emb_dim, self.num_slots)
 
-    # Embed the stories and queries
-    Emb_Matrix = theano.shared(0.1*np.random.rand(vocab_size, emb_dim))
-    Emb_Stories = Emb_Matrix[Stories]  # Shared variable of shape (N_stories, T_max, K_max,emb_dim)
-    Emb_Queries = Emb_Matrix[Queries]  # shape (N,K,emb_dim)
+        # Paceholders for input
+        self.Stories = T.itensor3(name='Stories')  # Num_stories x T x K
+        self.Queries = T.imatrix3(name='Queries')  # Num_stories X K_max
+        self.Answers = T.imatrix3(name='Answers')  # Num_stories X K_max
 
-    # Initialise mask
-    F = theano.shared(0.1*np.random.rand(K, emb_dim))
-    masked_stories = T.sum((Emb_Stories*F.dimshuffle(['x', 'x', 0, 1])), axis=2) # shape (N_stories, T_max, emb_dim)
-    masked_queries = T.sum((Emb_Queries*F.dumshuffle(['x', 0, 1])), axis=1)  # shape N,emb_dim
+        # Data Set dimensions
+        self.N = T.shape(self.Stories)[0]
+        self.T = T.shape(self.Stories)[1]  # max_story_len
+        self.K = T.shape(self.Stories)[2]  # max_sent_len
 
-    # Initialise state of the entity network
-    init_state = theano.shared(0.1*np.random.rand(N, num_slots, emb_dim), name="hidden_state")
-    init_keys = theano.shared(0.1*np.random.rand(N, num_slots, emb_dim), name="init_keys")
+        # Build the Computation Graph
+        self._create_network()
 
-    # Pass stories through recurrent entity Cell
-    cell = RenCell(emb_dim, num_slots)
-    h_T, cell_updates = cell(masked_stories, init_state, init_keys)
+    def _initialize_weights(self, *args, **kwargs):
+        pass
 
-    # Use the ouput to generate an answer
-    p = T.nnet.softmax(T.sum(Queries.dimshuffle([0, 'x', 1])*h_T, axis=2))  # shape (N,num_slots)
-    u = T.sum(p.dimshuffle([0, 1, 'x'])*h_T, axis=1) # shape (N, emb_dim)
-    hop_weight = theano.shared(0.1*np.random.rand(emb_dim, emb_dim))
-    out_weight = theano.shared(0.1*np.random.rand(emb_dim, vocab_size))
-    _answers = T.nnet.softmax(T.dot(T.tanh(T.dot(u, hop_weight) + Queries), out_weight)) #  shape (N, Vocab_size)
+    def _get_answer(self, h_T, queries, hop_wt, out_wt):
 
-    # Define the loss function
-    loss = T.nnet.categorical_crossentropy(_answers, answers)
+        # Attend over last state with embedded query vector
+        attn = T.nnet.softmax(T.sum(queries.dimshuffle([0, 'x', 1])*h_T,
+                                    axis=2))  # shape (N,num_slots)
 
+        # Weight memories by attention
+        u = T.sum(attn.dimshuffle([0, 1, 'x'])*h_T, axis=1)  # (N, emb_dim)
 
-    return None
+        # Get answer
+        answer = T.nnet.softmax(T.dot(T.tanh(T.dot(u, hop_wt) + queries),
+                                      out_wt))  # shape (N, Vocab_size)
+
+        return answer
+
+    def _create_network(self):
+
+        # Embed the stories and queries
+        self.Emb_Matrix = self._initialize_weights(self.vocab_size, self.emb_dim)
+        self.Emb_Stories = self.Emb_Matrix[self.Stories]  # Shared variable of shape (N_stories, T_max, K_max,emb_dim)
+        self.Emb_Queries = self.Emb_Matrix[self.Queries]  # shape (N,K,emb_dim)
+
+        # Initialise mask and mask stories
+        self.F = self._initialize_weights(self.K, self.emb_dim)
+        self.masked_stories = T.sum((self.Emb_Stories*self.F.dimshuffle(['x', 'x', 0, 1])),
+                                    axis=2)  # shape (N_stories, T_max, emb_dim
+
+        self.masked_queries = T.sum((self.Emb_Queries*self.F.dumshuffle(['x', 0, 1])),
+                                    axis=1)  # shape N,emb_dim
+
+        # Initialise state of the entity network
+        init_state = self._initialize_weights(self.N, self.num_slots,
+                                              self.emb_dim, name="hidden_state")
+
+        init_keys = self._initialize_weights(self.N, self.num_slots,
+                                             self.emb_dim, name="init_keys")
+
+        # Pass stories through recurrent entity Cell
+        self.h_T, _ = self.cell(self.masked_stories, init_state, init_keys)
+
+        # Use the ouput to generate an answer
+        self.hop_weight = self._initialize_weights(self.emb_dim, self.emb_dim)
+        self.out_weight = self._initialize_weights(self.emb_dim, self.vocab_size)
+
+        self._answer = self._get_answer(self.h_T, self.Emb_Queries,
+                                        self.hop_weight, self.out_weight)
+
+        # Define the loss function
+        self.loss = T.nnet.categorical_crossentropy(self._answer, self.Answers)
+
+    def train_batch(self, Stories, Queries, Answers):
+        pass
