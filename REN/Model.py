@@ -2,15 +2,17 @@ from REN_Cell import RenCell
 import theano
 import theano.tensor as T
 import numpy as np
+import lasagne
 
 
 class EntityNetwork():
 
-    def __init__(self, emb_dim, vocab_size, num_slots):
+    def __init__(self, emb_dim, vocab_size, num_slots, optimizer=lasagne.updates.adam):
         self.emb_dim = emb_dim
         self.vocab_size = vocab_size
         self.num_slots = num_slots  # num of hdn state units.
         self.cell = RenCell(self.emb_dim, self.num_slots)
+        self.optimzer = optimzer
 
         # Paceholders for input
         self.Stories = T.itensor3(name='Stories')  # Num_stories x T x K
@@ -24,6 +26,8 @@ class EntityNetwork():
 
         # Build the Computation Graph
         self._create_network()
+        self.train_func = self._get_train_func()
+
 
     def _initialize_weights(self, *args, **kwargs):
         pass
@@ -42,6 +46,11 @@ class EntityNetwork():
                                       out_wt))  # shape (N, Vocab_size)
 
         return answer
+
+    def _get_train_func(self):
+        updates = self.optimzer(self.loss, self.params)
+        return theano.function(inputs=[self.stories, self.Queries, self.Answers],
+                               outputs=[self.loss], updates=updates)
 
     def _create_network(self):
 
@@ -79,4 +88,4 @@ class EntityNetwork():
         self.loss = T.nnet.categorical_crossentropy(self._answer, self.Answers)
 
     def train_batch(self, Stories, Queries, Answers):
-        pass
+        return self.train_func(Stories, Queries, Answers)
