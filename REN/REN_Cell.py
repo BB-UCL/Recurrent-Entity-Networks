@@ -9,7 +9,6 @@ class RenCell:
     """ The Core Recurrent Entity Network Cell.
     """
 
-
     def __init__(self, emb_dim, num_slots, activation=T.nnet.sigmoid):
         """Initialise all the paramters as shared variables"""
         self.num_slots = num_slots  # M
@@ -20,6 +19,7 @@ class RenCell:
         self.U = self._initialize_weights(emb_dim, emb_dim, name='U')
         self.V = self._initialize_weights(emb_dim, emb_dim, name='V')
         self.W = self._initialize_weights(emb_dim, emb_dim, name='W')
+        self.params = [self.U, self.V, self.W]
 
     def _initialize_weights(self, inputs, outputs, name=None, scale=0.1):
         return theano.shared(scale*np.random.randn(inputs, outputs), name=name)
