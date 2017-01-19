@@ -13,12 +13,14 @@ class EntityNetwork():
         self.num_slots = num_slots  # num of hdn state units.
         self.cell = RenCell(self.emb_dim, self.num_slots)
         self.optimser = optimiser
-        self.params = [self.cell.params, self._initialise_weights()]
+
+        # Combine cell parameters with all the other parameters and init
+        self.params = self.cell.params.update(self._initialise_weights())
 
         # Paceholders for input
-        self.Stories = T.itensor3(name='Stories')  # Num_stories x T x K
+        self.Stories = T.itensor3(name='Stories')  # Num_stories x T x K_max
         self.Queries = T.imatrix3(name='Queries')  # Num_stories X K_max
-        self.Answers = T.imatrix3(name='Answers')  # Num_stories X K_max
+        self.Answers = T.imatrix3(name='Answers')  # Num_stories X K_max Could maybe be a column vec?
 
         # Data Set dimensions
         self.N = T.shape(self.Stories)[0]
@@ -54,14 +56,13 @@ class EntityNetwork():
         # Weight memories by attention
         u = T.sum(attn.dimshuffle([0, 1, 'x'])*h_T, axis=1)  # (N, emb_dim)
 
-        # Get answer
+        # Get answer (It might be interesting to replace out_wt with embedding mask)
         answer = T.nnet.softmax(T.dot(T.tanh(T.dot(u, hop_wt) + queries),
                                       out_wt))  # shape (N, Vocab_size)
-
         return answer
 
     def _get_train_func(self):
-        updates = self.optimser(self.loss, self.params)
+        updates = self.optimser(self.loss, self.params.values())
         return theano.function(inputs=[self.stories, self.Queries, self.Answers],
                                outputs=[self.loss, self.accuracy], updates=updates)
 
@@ -75,7 +76,7 @@ class EntityNetwork():
         self.Emb_Stories = params['Emb_Matrix'][self.Stories]  # Shared variable of shape (N_stories, T_max, K_max,emb_dim)
         self.Emb_Queries = params['Emb_Matrix'][self.Queries]  # shape (N,K,emb_dim)
 
-        # Initialise mask and mask stories
+        # mask stories and queries
         self.masked_stories = T.sum((self.Emb_Stories*params['mask'].dimshuffle(['x', 'x', 0, 1])),
                                     axis=2)  # shape (N_stories, T_max, emb_dim
 
@@ -93,12 +94,13 @@ class EntityNetwork():
         self._answer = self._get_answer(self.h_T, self.Emb_Queries,
                                         self.hop_weight, self.out_weight)
 
-        # Define the loss function
+        # Define the loss function and get the accuracy
         self.loss = T.nnet.categorical_crossentropy(self._answer, self.Answers)
         self.accuracy = T.mean(T.eq(T.argmax(self._answer, axis=1), self.Answers))
 
     def train_batch(self, Stories, Queries, Answers):
-        return self.train_func(Stories, Queries, Answers)
+        loss, accuracy = self.train_func(Stories, Queries, Answers)
+        return loss, accuracy
 
     def get_answer(self, Stories, Queries):
         return self.answer_func(Stories, Queries)

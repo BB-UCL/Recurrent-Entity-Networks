@@ -19,7 +19,7 @@ class RenCell:
         self.U = self._initialize_weights(emb_dim, emb_dim, name='U')
         self.V = self._initialize_weights(emb_dim, emb_dim, name='V')
         self.W = self._initialize_weights(emb_dim, emb_dim, name='W')
-        self.params = [self.U, self.V, self.W]
+        self.params = {'U': self.U, 'V': self.V, 'W': self.W}
 
     def _initialize_weights(self, inputs, outputs, name=None, scale=0.1):
         return theano.shared(scale*np.random.randn(inputs, outputs), name=name)
@@ -41,10 +41,6 @@ class RenCell:
         Inputs - (Time_steps, N, emb_dim) matrix
         """
 
-        N = T.shape(inputs)[0]
-        assert(T.shape(init_state) == (N, self.num_slots, self.emb_dim),
-               """The dimensions of the hidden state needs to be (batch_size,
-                  num_slots, embd_dim)""")
 
         def REN_step(S_t, H_tm1, Keys, U, V, W):
             """ Perfrom one step of the RNN updates"""
