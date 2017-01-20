@@ -81,17 +81,21 @@ def convert_stories_toints(stories, vocab_dict):
     return integer_stories
 
 
-def get_vocab_dict(parsed_stories):
+def get_vocab_dict(parsed_stories, vocab_dict=None):
     """
     Recover unique tokens as a vocab and map the tokens to ids.
     """
+    if vocab_dict is None:
+        vocab_dict = {PAD_TOKEN: 0}
     tokens_all = []
     for story, queries, _, answers in parsed_stories:
         tokens_all.extend([token for sentence in story for token in sentence]
                           + [token for query in queries for token in query]
                           + [token for token in answers])
-    vocab = set(sorted(tokens_all))
-    vocab_dict = {token: i for i, token in enumerate(vocab)}
+    new_vocab = sorted(set(tokens_all))
+    for word in new_vocab:
+        if word not in vocab_dict:
+            vocab_dict[word] = len(vocab_dict) + 1
     return vocab_dict
 
 
@@ -118,6 +122,61 @@ def group(parsed_stories):
     return groups
 
 
+def save_parsed_data(groups, filename):
+    np.savez(filename, stories=groups[0], queries=groups[1], indices=groups[2],
+             answers=groups[3])
+
+
+def main():
+    vocab_dict = None
+    filenames = ['qa1_single-supporting-fact',
+                 'qa2_two-supporting-facts',
+                 'qa3_three-supporting-facts',
+                 'qa4_two-arg-relations',
+                 'qa5_three-arg-relations',
+                 'qa6_yes-no-questions',
+                 'qa7_counting',
+                 'qa8_lists-sets',
+                 'qa9_simple-negation',
+                 'qa10_indefinite-knowledge',
+                 'qa11_basic-coreference',
+                 'qa12_conjunction',
+                 'qa13_compound-coreference',
+                 'qa14_time-reasoning',
+                 'qa15_basic-deduction',
+                 'qa16_basic-induction',
+                 'qa17_positional-reasoning',
+                 'qa18_size-reasoning',
+                 'qa19_path-finding',
+                 'qa20_agents-motivations']
+
+    for filename in filenames:
+        with open('Data/en-10k/' + filename + '_train.txt') as f:
+            storylines_train = f.readlines()
+
+        # Parse Stories
+        print("parsing " + filename)
+        parsed_stories, max_story, max_sent = parse_stories(storylines_train)
+
+        # Update Vocabulary
+        print("Learning new words")
+        vocab_dict = get_vocab_dict(parsed_stories, vocab_dict)
+
+        # Pad Stories
+        print("Padding Stories")
+        padded_stories = pad_stories(parsed_stories, max_sent, max_story)
+
+        # Convert to ints
+        print("Mapping to Integers")
+        int_stories = convert_stories_toints(padded_stories, vocab_dict)
+
+        # Reshape ready for model
+        print("Reshaping for Neural Net Input")
+        grouped_stories = group(int_stories)
+
+        # Save model
+        print('Saving')
+        save_parsed_data(grouped_stories, 'Data/Train/' + filename + '_train')
+
 if __name__ == "__main__":
-    with open('../Data/task_1.txt') as task_1:
-        stories = task_1.read()
+    main()
