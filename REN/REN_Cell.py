@@ -36,7 +36,7 @@ class RenCell:
         _H_prime = H + gate*_H
         return _H_prime/(_H_prime.norm(2, axis=2).dimshuffle([0, 1, 'x']))
 
-    def __call__(self, inputs, init_state, init_keys):
+    def __call__(self, inputs, init_state, init_keys, indices=-1):
         """ Take mini-bath of inputs and return final sate of the REN Cell
         Inputs - (Time_steps, N, emb_dim) matrix
         """
@@ -59,4 +59,4 @@ class RenCell:
                                       non_sequences=[init_keys, self.U, self.V, self.W],
                                       )
 
-        return Y_vals[-1], updates
+        return Y_vals[indices], updates
