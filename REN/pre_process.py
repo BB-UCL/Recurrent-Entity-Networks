@@ -8,16 +8,21 @@
     - Pad stories/sentences to right length
     - reshape
 
+Vocab size is 159
+
 output will be a a series of numpy arrays to be fed as input
 to the network.
 --> Stories Array (Num_Stories, max_story_length, max_sent_lenth)
---> Queries Array (Num_storeis, max_sent_length)
---> Answers Array (Num_stories,1)
+--> Queries Array (Num_stories, Num_queries, max_sent_length)
+--> Indices (Num_stories, Num_queries)
+--> Answers Array (Num_stories, Num_queries)
 """
 import regex as re
 import numpy as np
 import copy
 PAD_TOKEN = 'PAD'
+
+# TODO group stories currently expects same number of questions per story.
 
 
 def tokenize(sentence):
@@ -36,12 +41,12 @@ def parse_stories(story_lines):
     answers = []
     max_story = 0
     max_sent = 0
-
+    query_count = 0
     for n, line in enumerate(story_lines):
         ID, sentence = line.split(' ', 1)
         ID = int(ID)
         sentence = sentence.strip()
-        if ID == 1 and n > 1:
+        if ID == 1 and n>1:
             parsed_stories.append((story, queries, query_indices, answers))
             if len(story) > max_story:
                 max_story = len(story)
@@ -49,6 +54,7 @@ def parse_stories(story_lines):
             queries = []
             query_indices = []
             answers = []
+            query_count = 0
         if '\t' not in sentence:
             sentence = tokenize(sentence)
             if len(sentence) > max_sent:
@@ -57,10 +63,11 @@ def parse_stories(story_lines):
         else:
             query, answer, _ = sentence.split('\t')
             query = tokenize(query)
+            query_count += 1
             if len(query) > max_sent:
                 max_sent = len(query)
             queries.append(query)
-            query_indices.append(ID-1)
+            query_indices.append(ID-query_count-1)
             answers.append(answer)
     parsed_stories.append((story, queries, query_indices, answers))
 
@@ -146,9 +153,7 @@ def main():
                  'qa15_basic-deduction',
                  'qa16_basic-induction',
                  'qa17_positional-reasoning',
-                 'qa18_size-reasoning',
-                 'qa19_path-finding',
-                 'qa20_agents-motivations']
+                 'qa19_path-finding']
 
     for filename in filenames:
         with open('Data/en-10k/' + filename + '_train.txt') as f:
@@ -177,6 +182,8 @@ def main():
         # Save model
         print('Saving')
         save_parsed_data(grouped_stories, 'Data/Train/' + filename + '_train')
+
+    print("vocab is of size {}".format(len(vocab_dict)))
 
 if __name__ == "__main__":
     main()
