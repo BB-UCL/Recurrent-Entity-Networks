@@ -74,7 +74,7 @@ def parse_stories(story_lines):
     return parsed_stories, max_story, max_sent
 
 
-def convert_stories_toints(stories, vocab_dict):
+def convert_stories_tokens(stories, vocab_dict):
     """Takes the training stories as a list of tuples and replaces the tokens
     with an integer index in the range of the vocabulary """
 
@@ -173,7 +173,7 @@ def main():
 
         # Convert to ints
         print("Mapping to Integers")
-        int_stories = convert_stories_toints(padded_stories, vocab_dict)
+        int_stories = convert_stories_tokens(padded_stories, vocab_dict)
 
         # Reshape ready for model
         print("Reshaping for Neural Net Input")
