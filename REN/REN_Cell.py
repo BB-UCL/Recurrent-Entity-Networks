@@ -53,10 +53,10 @@ class RenCell:
 
             return H
 
-        Y_vals, updates = theano.scan(REN_step,
-                                      sequences=inputs,
-                                      outputs_info=[init_state],
-                                      non_sequences=[init_keys, self.U, self.V, self.W],
-                                      )
+        out_vals, updates = theano.scan(REN_step,
+                                        sequences=inputs,
+                                        outputs_info=[init_state],
+                                        non_sequences=[init_keys, self.U, self.V, self.W],
+                                        )
 
-        return Y_vals[indices], updates
+        return out_vals[indices], updates
