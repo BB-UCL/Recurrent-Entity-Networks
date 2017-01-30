@@ -17,7 +17,7 @@ class EntityNetwork():
         # Paceholders for input
         self.Stories = T.ltensor3(name='Stories')  # Num_stories x T x K_max
         self.Queries = T.ltensor3(name='Queries')  # Num_stories X Num_queries X K_max
-        self.Indices = T.lvector(name="Indices")  # Num_Stories X Num_queries
+        self.Indices = T.lmatrix(name="Indices")  # Num_Stories X Num_queries
         self.Answers = T.lmatrix(name='Answers')  # Num_stories X Num_queries
 
         # Data Set dimensions
@@ -98,7 +98,7 @@ class EntityNetwork():
                                 self.Indices)
 
         # Reshape H to have dimension (N_q*N_s, M, D) and Q to be N_q*N_s, D
-        self.H_s = self.H_s.dimshuffle([1, 0, 2, 3])
+        #self.H_s = self.H_s.dimshuffle([1, 0, 2, 3])
         self.H_s = T.reshape(self.H_s, [-1, self.num_slots, self.emb_dim], ndim=3)
         self.masked_queries = T.reshape(self.masked_queries,
                                         [-1, self.emb_dim],
@@ -117,6 +117,13 @@ class EntityNetwork():
 
     def train_batch(self, Stories, Queries, Indices, Answers):
         loss, accuracy = self.train_func(Stories, Queries, Indices, Answers)
+        return loss, accuracy
+
+    def test_network(self, Stories, Queries, Indices, Answers):
+        f = theano.function(inputs=[self.Stories, self.Queries, self.Indices,
+                                       self.Answers],
+                               outputs=[self.loss, self.accuracy],)
+        loss, accuracy = f(Stories, Queries, Indices, Answers)
         return loss, accuracy
 
     def get_answer(self, Stories, Queries):

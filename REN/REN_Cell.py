@@ -40,14 +40,14 @@ class RenCell:
         """ Take mini-bath of inputs and return final sate of the REN Cell
         Inputs - (Time_steps, N, emb_dim) matrix
         """
-
+        story_indices = T.arange(T.shape(inputs)[1]).dimshuffle([0, 'x'])
 
         def REN_step(S_t, H_tm1, Keys, U, V, W):
             """ Perfrom one step of the RNN updates"""
 
-            gate = self._get_gate(S_t, H_tm1, Keys)  # should be (N,emb_dim)
+            gate = self._get_gate(S_t, H_tm1, Keys)  # should be (N, M, emb_dim)
 
-            _H = self._get_candidate(S_t, H_tm1, Keys)  # should be (N,emb_dim)
+            _H = self._get_candidate(S_t, H_tm1, Keys)  # should be (N, M, emb_dim)
 
             H = self._update_memory(H_tm1, _H, gate)
 
@@ -59,4 +59,4 @@ class RenCell:
                                         non_sequences=[init_keys, self.U, self.V, self.W],
                                         )
 
-        return out_vals[indices], updates
+        return out_vals[indices, story_indices], updates

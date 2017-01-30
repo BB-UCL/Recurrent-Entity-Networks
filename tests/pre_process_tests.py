@@ -6,6 +6,7 @@ def test_tokenize():
     assert(tokens == ['raza', 'went', 'to', 'the', 'park', '?'])
 
 def test_parse_stories():
+    """ This test is now out_of date. Rewrite needed."""
     story_lines = ['1 Daniel journeyed to the office.\n',
                    '2 John moved to the bedroom.\n',
                    '3 Where is John?\tbedroom\t2\n',

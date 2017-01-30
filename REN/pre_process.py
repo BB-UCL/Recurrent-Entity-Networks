@@ -88,6 +88,8 @@ def convert_stories_toints(stories, vocab_dict):
 
     return integer_stories
 
+def convertints_to_stories()
+
 
 def get_vocab_dict(parsed_stories, vocab_dict=None):
     """
@@ -157,7 +159,7 @@ def main():
                  'qa19_path-finding']
 
     for filename in filenames:
-        with open('Data/en-10k/' + filename + '_train.txt') as f:
+        with open('Data/en/' + filename + '_test.txt') as f:
             storylines_train = f.readlines()
 
         # Parse Stories
@@ -182,7 +184,7 @@ def main():
 
         # Save model
         print('Saving')
-        save_parsed_data(grouped_stories, 'Data/Train/' + filename + '_train')
+        save_parsed_data(grouped_stories, 'Data/Test/' + filename + '_test')
 
     print("vocab is of size {}".format(len(vocab_dict)))
 
