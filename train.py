@@ -55,5 +55,5 @@ def extract_stories(data):
 
 
 if __name__ == "__main__":
-    train('Data/Train/qa2_two-supporting-facts_train.npz',
-          'Data/Test/qa2_two-supporting-facts_test.npz', params)
+    train('Data/Train/qa7_counting_train.npz',
+          'Data/Test/qa7_counting_test.npz', params)
