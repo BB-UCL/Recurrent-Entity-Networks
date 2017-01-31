@@ -33,6 +33,51 @@ class EntityNetwork():
         self.train_func = self._get_train_func()
         self.answer_func = self._get_answer_func()
 
+    def _create_network(self, params):
+
+        # Embed the stories and queries
+        self.Emb_Stories = params['emb_matrix'][self.Stories]  # Shared variable of shape (N_stories, T_max, K_max, emb_dim)
+        self.Emb_Queries = params['emb_matrix'][self.Queries]  # shape (N, Num_q, K,emb_dim)
+
+        # mask stories and queries
+        self.masked_stories = T.sum((self.Emb_Stories*params['mask'].dimshuffle(['x', 'x', 0, 1])),
+                                    axis=2).dimshuffle([1, 0, 2])  # shape (T_max, N_stories, emb_dim)
+
+        self.masked_queries = T.sum((self.Emb_Queries*params['mask'].dimshuffle(['x', 'x', 0, 1])),
+                                    axis=2)  # shape N,emb_dim
+
+        # Initialise Hidden state
+        init = self._init_weight([self.num_slots, self.emb_dim],
+                                 name="init_keys").dimshuffle(['x', 0, 1])
+
+        one_repeats = T.ones([self.N]).dimshuffle([0, 'x', 'x'])
+        self.params['init_keys'] = init*one_repeats  # shape (N_stories, num_slots, emb_dim)
+        self.init_state = init*one_repeats
+
+        # Pass through the recurrent entity cell
+        self.H_s, _ = self.cell(self.masked_stories,
+                                self.init_state,
+                                self.init_keys,
+                                self.Indices)
+
+        # Reshape H to have dimension (N_q*N_s, M, D) and Q to be N_q*N_s, D
+        #self.H_s = self.H_s.dimshuffle([1, 0, 2, 3])
+        self.H_s = T.reshape(self.H_s, [-1, self.num_slots, self.emb_dim], ndim=3)
+        self.masked_queries = T.reshape(self.masked_queries,
+                                        [-1, self.emb_dim],
+                                        ndim=2)  # N_q*N_s, D
+
+        # Use the ouput to generate a set of answers
+        self._answers = self._get_answer(self.H_s, self.masked_queries,
+                                         params['hop_weight'],
+                                         params['out_weight'])  # (N*N_q, vocab_size)
+
+        # Define the loss function and get the accuracy
+        self.loss = T.mean(T.nnet.categorical_crossentropy(T.nnet.softmax(self._answers),
+                                                          self.Answers.flatten()))
+
+        self.accuracy = T.mean(T.eq(T.argmax(self._answers, axis=1), self.Answers.flatten()))
+
     def _initialise_weights(self):
         params = {}
         params['emb_matrix'] = self._init_weight([self.vocab_size, self.emb_dim])
@@ -69,51 +114,6 @@ class EntityNetwork():
         return theano.function(inputs=[self.Stories, self.Queries,
                                        self.Indices],
                                outputs=self._answers)
-
-    def _create_network(self, params):
-
-        # Embed the stories and queries
-        self.Emb_Stories = params['emb_matrix'][self.Stories]  # Shared variable of shape (N_stories, T_max, K_max, emb_dim)
-        self.Emb_Queries = params['emb_matrix'][self.Queries]  # shape (N, Num_q, K,emb_dim)
-
-        # mask stories and queries
-        self.masked_stories = T.sum((self.Emb_Stories*params['mask'].dimshuffle(['x', 'x', 0, 1])),
-                                    axis=2).dimshuffle([1, 0, 2])  # shape (T_max, N_stories, emb_dim)
-
-        self.masked_queries = T.sum((self.Emb_Queries*params['mask'].dimshuffle(['x', 'x', 0, 1])),
-                                    axis=2)  # shape N,emb_dim
-
-        # Initialise Hidden state
-        init = self._init_weight([self.num_slots, self.emb_dim],
-                                 name="init_keys").dimshuffle(['x', 0, 1])
-
-        one_repeats = T.ones([self.N]).dimshuffle([0, 'x', 'x'])
-        self.init_keys = init*one_repeats  # shape (N_stories, num_slots, emb_dim)
-        self.init_state = init*one_repeats
-
-        # Pass through the recurrent entity cell
-        self.H_s, _ = self.cell(self.masked_stories,
-                                self.init_state,
-                                self.init_keys,
-                                self.Indices)
-
-        # Reshape H to have dimension (N_q*N_s, M, D) and Q to be N_q*N_s, D
-        #self.H_s = self.H_s.dimshuffle([1, 0, 2, 3])
-        self.H_s = T.reshape(self.H_s, [-1, self.num_slots, self.emb_dim], ndim=3)
-        self.masked_queries = T.reshape(self.masked_queries,
-                                        [-1, self.emb_dim],
-                                        ndim=2)  # N_q*N_s, D
-
-        # Use the ouput to generate a set of answers
-        self._answers = self._get_answer(self.H_s, self.masked_queries,
-                                         params['hop_weight'],
-                                         params['out_weight'])  # (N*N_q, vocab_size)
-
-        # Define the loss function and get the accuracy
-        self.loss = T.mean(T.nnet.categorical_crossentropy(T.nnet.softmax(self._answers),
-                                                          self.Answers.flatten()))
-
-        self.accuracy = T.mean(T.eq(T.argmax(self._answers, axis=1), self.Answers.flatten()))
 
     def train_batch(self, Stories, Queries, Indices, Answers):
         loss, accuracy = self.train_func(Stories, Queries, Indices, Answers)
