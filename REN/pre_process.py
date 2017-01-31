@@ -1,5 +1,4 @@
 """ Pre-Processing Pipe-Line:
-
 1) Tokenize
     - Load Data
     - Split into individual words.
@@ -14,27 +13,31 @@ output will be a a series of numpy arrays to be fed as input
 to the network.
 --> Stories Array (Num_Stories, max_story_length, max_sent_lenth)
 --> Queries Array (Num_stories, Num_queries, max_sent_length)
---> Indices (Num_stories, Num_queries)
+--> Indices (Num_stories, Num_queries) (These represent the index of when a
+question is asked.)
 --> Answers Array (Num_stories, Num_queries)
 """
+
 import regex as re
 import numpy as np
 import copy
+import pickle
 PAD_TOKEN = 'PAD'
-import pdb
-
-# TODO group stories currently expects same number of questions per story.
 
 
+"""Note the use of regex rather than standard python re as python re doesnt
+allow split on zero length assertions"""
 def tokenize(sentence):
     return [token.strip().lower() for token in re.split(r'\s|(?=\.)|(?=\?)',
             sentence, flags=re.VERSION1) if token.strip()]
 
 
 def parse_stories(story_lines):
-    """ Take in the Babi tasks and return a list of
-    (story,queries, query_position, answers) tuples as
-    well as the length of the longest story and sentence"""
+    """ Take in the Babi tasks in the format described here tinyurl: j4vlnnu
+    and return a list of (story, queries, query_position, answers) tuples as
+    well as the length of the longest story, sentence and query in the data_set
+    """
+
     parsed_stories = []
     story = []
     queries = []
@@ -42,6 +45,7 @@ def parse_stories(story_lines):
     answers = []
     max_story = 0
     max_sent = 0
+    max_query = 0
     query_count = 0
     for n, line in enumerate(story_lines):
         ID, sentence = line.split(' ', 1)
@@ -51,6 +55,8 @@ def parse_stories(story_lines):
             parsed_stories.append((story, queries, query_indices, answers))
             if len(story) > max_story:
                 max_story = len(story)
+            if query_count > max_query:
+                max_query = query_count
             story = []
             queries = []
             query_indices = []
@@ -72,7 +78,7 @@ def parse_stories(story_lines):
             answers.append(answer)
     parsed_stories.append((story, queries, query_indices, answers))
 
-    return parsed_stories, max_story, max_sent
+    return parsed_stories, max_story, max_sent, max_query
 
 
 def convert_stories_toints(stories, vocab_dict):
@@ -88,12 +94,11 @@ def convert_stories_toints(stories, vocab_dict):
 
     return integer_stories
 
-def convertints_to_stories()
-
 
 def get_vocab_dict(parsed_stories, vocab_dict=None):
     """
     Recover unique tokens as a vocab and map the tokens to ids.
+    return a dictionary of this vocab.
     """
     if vocab_dict is None:
         vocab_dict = {PAD_TOKEN: 0}
@@ -109,14 +114,17 @@ def get_vocab_dict(parsed_stories, vocab_dict=None):
     return vocab_dict
 
 
-def pad_stories(stories, max_sent_len, max_story_len):
+def pad_stories(stories, max_sent_len, max_story_len, max_query_num):
+    """ Add the padd token to the stories """
     padded_stories = copy.deepcopy(stories)
-    for story, queries, index, answer in padded_stories:
+    for story, queries, indices, answer in padded_stories:
         for query in queries:
             query.extend([PAD_TOKEN]*(max_sent_len - len(query)))
+        queries.extend([[PAD_TOKEN]*max_sent_len]*(max_query_num - len(queries)))
         for sentence in story:
             sentence.extend([PAD_TOKEN]*(max_sent_len-len(sentence)))
         story.extend([[PAD_TOKEN]*max_sent_len]*(max_story_len - len(story)))
+        indices.extend([0]*(max_query_num - len(queries)))
     return padded_stories
 
 
@@ -159,12 +167,12 @@ def main():
                  'qa19_path-finding']
 
     for filename in filenames:
-        with open('Data/en/' + filename + '_test.txt') as f:
+        with open('Data/en-10k/' + filename + '_train.txt') as f:
             storylines_train = f.readlines()
 
         # Parse Stories
         print("parsing " + filename)
-        parsed_stories, max_story, max_sent = parse_stories(storylines_train)
+        parsed_stories, max_story, max_sent, max_qs = parse_stories(storylines_train)
 
         # Update Vocabulary
         print("Learning new words")
@@ -172,7 +180,7 @@ def main():
 
         # Pad Stories
         print("Padding Stories")
-        padded_stories = pad_stories(parsed_stories, max_sent, max_story)
+        padded_stories = pad_stories(parsed_stories, max_sent, max_story, max_qs)
 
         # Convert to ints
         print("Mapping to Integers")
@@ -184,7 +192,13 @@ def main():
 
         # Save model
         print('Saving')
-        save_parsed_data(grouped_stories, 'Data/Test/' + filename + '_test')
+        save_parsed_data(grouped_stories, 'Data/Train/en-10k/' + filename +
+                         '_train')
+
+    # Save Vocab
+    with open('Data/Train/en-10k/vocab.pickle', 'wb') as handle:
+            pickle.dump(vocab_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
 
     print("vocab is of size {}".format(len(vocab_dict)))
 
