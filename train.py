@@ -1,14 +1,16 @@
 import numpy as np
 from REN import Model
 from six.moves import cPickle
-import pdb
+import time
+import sys
+sys.setrecursionlimit(1500)
 
 params = {'embeding_dimension': 100,
           'num_slots': 20,
           'init_learning_rate': 0.01,
-          'num_epochs': 20,
+          'num_epochs': 15,
           'vocab_size': 160,
-          'batch_size': 31}
+          'batch_size': 32}
 
 
 def train(path_to_train, path_to_test, params):
@@ -26,20 +28,19 @@ def train(path_to_train, path_to_test, params):
                                   params['max_sent_len'])
 
     loss = 0.0
+    print('loss training_accuracy       test_loss   test_accuracy')
     for i in range(params['num_epochs']):
-        print(' EPOCH {}').format(i)
         for n,batch in enumerate(get_batch(train_data, params['batch_size'])):
             batch_loss, accuracy = Ent_Net.train_batch(*batch)
             loss = loss + (batch_loss - loss)/(params['batch_size']*1.0)
-            if n%10 ==0:
+            if n%10 == 0:
                 test_loss, test_accuracy = Ent_Net.test_network(*test_data)
-                print('Loss: {}  training_accuracy: {}  test_loss: {} testing_accuracy:{} ').format(batch_loss, accuracy,
-                                                                                                    test_loss, test_accuracy)
+                print('{}   {}  {}  {}').format(batch_loss, accuracy,
+                                                test_loss, test_accuracy)
+    with open('Results/modelEF.save','wb') as f:
+        cPickle.dump(Ent_Net, f, protocol=cPickle.HIGHEST_PROTOCOL)
 
 
-    #f = open('Results/model1.save', 'wb')
-    #cPickle.dump(Ent_Net.params, f, protocol=cPickle.HIGHEST_PROTOCOL)
-    #f.close()
 
 def get_batch(data, batch_size):
     stories, queries, indices , answers = extract_stories(data)
@@ -55,5 +56,5 @@ def extract_stories(data):
 
 
 if __name__ == "__main__":
-    train('Data/Train/qa7_counting_train.npz',
-          'Data/Test/qa7_counting_test.npz', params)
+    train('Data/Train/qa1_single-supporting-fact_train.npz',
+          'Data/Test/qa1_single-supporting-fact_test.npz', params)

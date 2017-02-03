@@ -7,7 +7,7 @@
     - Pad stories/sentences to right length
     - reshape
 
-Vocab size is 159
+Vocab size is 160
 
 output will be a a series of numpy arrays to be fed as input
 to the network.
@@ -164,6 +164,7 @@ def main():
                  'qa15_basic-deduction',
                  'qa16_basic-induction',
                  'qa17_positional-reasoning',
+                 'qa18_size-reasoning',
                  'qa19_path-finding']
 
     for filename in filenames:

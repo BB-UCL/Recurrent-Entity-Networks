@@ -31,7 +31,6 @@ class EntityNetwork():
         # Build the Computation Graph and get the training function
         self._create_network(self.params)
         self.train_func = self._get_train_func()
-        self.answer_func = self._get_answer_func()
 
     def _create_network(self, params):
 
@@ -46,22 +45,21 @@ class EntityNetwork():
         self.masked_queries = T.sum((self.Emb_Queries*params['mask'].dimshuffle(['x', 'x', 0, 1])),
                                     axis=2)  # shape N,emb_dim
 
-        # Initialise Hidden state
-        init = self._init_weight([self.num_slots, self.emb_dim],
-                                 name="init_keys").dimshuffle(['x', 0, 1])
-
+        # Initialise Hidden state and repeat keys
+        init_state = self._init_weight([self.num_slots, self.emb_dim],
+                                       name="init_state").dimshuffle(['x', 0, 1])
         one_repeats = T.ones([self.N]).dimshuffle([0, 'x', 'x'])
-        self.params['init_keys'] = init*one_repeats  # shape (N_stories, num_slots, emb_dim)
-        self.init_state = init*one_repeats
+        self.init_state = init_state * one_repeats
+
+        repeat_keys = self.params['init_keys'].dimshuffle(['x', 0, 1])*one_repeats
 
         # Pass through the recurrent entity cell
         self.H_s, _ = self.cell(self.masked_stories,
                                 self.init_state,
-                                self.init_keys,
+                                repeat_keys,
                                 self.Indices)
 
         # Reshape H to have dimension (N_q*N_s, M, D) and Q to be N_q*N_s, D
-        #self.H_s = self.H_s.dimshuffle([1, 0, 2, 3])
         self.H_s = T.reshape(self.H_s, [-1, self.num_slots, self.emb_dim], ndim=3)
         self.masked_queries = T.reshape(self.masked_queries,
                                         [-1, self.emb_dim],
@@ -84,6 +82,7 @@ class EntityNetwork():
         params['mask'] = theano.shared(np.ones([self.K, self.emb_dim]))
         params['hop_weight'] = self._init_weight([self.emb_dim, self.emb_dim])
         params['out_weight'] = self._init_weight([self.emb_dim, self.vocab_size])
+        params['init_keys'] = self._init_weight([self.num_slots, self.emb_dim])
         return params
 
     def _init_weight(self, shape, name=None, scale=0.1):
@@ -110,24 +109,32 @@ class EntityNetwork():
                                outputs=[self.loss, self.accuracy],
                                updates=updates)
 
-    def _get_answer_func(self):
-        return theano.function(inputs=[self.Stories, self.Queries,
-                                       self.Indices],
-                               outputs=self._answers)
-
     def train_batch(self, Stories, Queries, Indices, Answers):
         loss, accuracy = self.train_func(Stories, Queries, Indices, Answers)
         return loss, accuracy
 
-    def test_network(self, Stories, Queries, Indices, Answers):
+    def test_network(self, Stories, Queries, Indices, Answers, params=None):
+        if params is not None:
+            print('reseting the weights')
+            self._reset_params(params)
         f = theano.function(inputs=[self.Stories, self.Queries, self.Indices,
                                        self.Answers],
                                outputs=[self.loss, self.accuracy],)
         loss, accuracy = f(Stories, Queries, Indices, Answers)
         return loss, accuracy
 
-    def get_answer(self, Stories, Queries):
-        return self.answer_func(Stories, Queries)
+    def get_answer(self, Stories, Queries, indices, params=None):
+        if params is not None:
+            self._reset_params(params)
+        f = theano.function(inputs=[self.Stories, self.Queries,
+                                    self.Indices],
+                            outputs=self._answers)
+
+        return f(Stories, Queries, indices)
+
+    def _reset_params(self, params):
+        self._create_network(params)
+
 
 if __name__ == "__main__":
     ENT = EntityNetwork(10, 160, 15, 10)

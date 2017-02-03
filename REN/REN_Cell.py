@@ -34,7 +34,8 @@ class RenCell:
     def _get_candidate(self, S_t, H, Keys):
         """ Equation (3) in arXiv:1612.03969v1"""
         return self.activation(T.dot(S_t, self.U).dimshuffle([0, 'x', 1]) +
-                               T.dot(H, self.V) + T.dot(Keys, self.W))
+                               T.dot(H, self.V) + T.dot(Keys, self.W),
+                               self.a)
 
     def _update_memory(self, H, _H, gate):
         """ Equation (4)/(5) in arXiv:1612.03969v1"""
