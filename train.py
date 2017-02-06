@@ -4,6 +4,7 @@ from six.moves import cPickle
 import sys
 sys.setrecursionlimit(1500)
 
+
 params = {'embeding_dimension': 100,
           'num_slots': 20,
           'init_learning_rate': 0.01,
@@ -26,10 +27,8 @@ def train(path_to_train, path_to_test, params):
                                   params['max_sent_len'])
 
     loss = 0.0
-    with open('Results/' + path_to_test[12:-4] + '.txt', 'a+') as f:
-        f.write('loss training_accuracy       test_loss   test_accuracy \n')
-        for i in range(params['num_epochs']):
-            print("Epoch {}").format(i)
+    for i in range(params['num_epochs']):
+        with open('Results/' + path_to_test[12:-4] + '.txt', 'a+') as f:
             for n, batch in enumerate(get_batch(train_data, params['batch_size'])):
                 batch_loss, accuracy = Ent_Net.train_batch(*batch)
                 # Get the moving average of the loss
@@ -38,7 +37,8 @@ def train(path_to_train, path_to_test, params):
                     test_loss, test_accuracy = Ent_Net.test_network(*test_data)
                     f.write('{}   {}  {}  {} \n'.format(batch_loss, accuracy,
                                                         test_loss, test_accuracy))
-    with open('Results/model' + path_to_test[20:-4] + '.save', 'wb') as f:
+
+    with open('Results/model' + path_to_test[12:-4] + '.save', 'wb') as f:
         cPickle.dump(Ent_Net, f, protocol=cPickle.HIGHEST_PROTOCOL)
 
 

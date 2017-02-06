@@ -27,6 +27,8 @@ PAD_TOKEN = 'PAD'
 
 """Note the use of regex rather than standard python re as python re doesnt
 allow split on zero length assertions"""
+
+
 def tokenize(sentence):
     return [token.strip().lower() for token in re.split(r'\s|(?=\.)|(?=\?)',
             sentence, flags=re.VERSION1) if token.strip()]
@@ -51,7 +53,7 @@ def parse_stories(story_lines):
         ID, sentence = line.split(' ', 1)
         ID = int(ID)
         sentence = sentence.strip()
-        if ID == 1 and n>1:
+        if ID == 1 and n > 1:
             parsed_stories.append((story, queries, query_indices, answers))
             if len(story) > max_story:
                 max_story = len(story)
@@ -199,7 +201,6 @@ def main():
     # Save Vocab
     with open('Data/Train/en-10k/vocab.pickle', 'wb') as handle:
             pickle.dump(vocab_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
 
     print("vocab is of size {}".format(len(vocab_dict)))
 
