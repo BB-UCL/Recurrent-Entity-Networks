@@ -8,7 +8,7 @@ sys.setrecursionlimit(1500)
 params = {'embeding_dimension': 100,
           'num_slots': 20,
           'init_learning_rate': 0.01,
-          'num_epochs': 1,
+          'num_epochs': 2,
           'vocab_size': 160,
           'batch_size': 32}
 
@@ -56,25 +56,7 @@ def extract_stories(data):
 
 
 if __name__ == "__main__":
-    data_sets = ['qa1_single-supporting-fact',
-                 'qa2_two-supporting-facts',
-                 'qa3_three-supporting-facts',
-                 'qa4_two-arg-relations',
-                 'qa5_three-arg-relations',
-                 'qa6_yes-no-questions',
-                 'qa7_counting',
-                 'qa8_lists-sets',
-                 'qa9_simple-negation',
-                 'qa10_indefinite-knowledge',
-                 'qa11_basic-coreference',
-                 'qa12_conjunction',
-                 'qa13_compound-coreference',
-                 'qa14_time-reasoning',
-                 'qa15_basic-deduction',
-                 'qa16_basic-induction',
-                 'qa17_positional-reasoning',
-                 'qa18_size-reasoning',
-                 'qa19_path-finding']
+    data_sets = ['qa1_single-supporting-fact']
 
     for data_set in data_sets:
         train('Data/Train/' + data_set + '_train.npz',

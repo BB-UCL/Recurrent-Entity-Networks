@@ -74,19 +74,19 @@ class EntityNetwork():
         self.loss = T.mean(T.nnet.categorical_crossentropy(T.nnet.softmax(self._answers),
                                                           self.Answers.flatten()))
 
-        self.accuracy = T.mean(T.eq(T.argmax(self._answers, axis=1), self.Answers.flatten()))
+        self.accuracy = T.mean(T.eq(T.argmax(self._answers, axis=1), self.Answers.flatten()), dtype='float32')
 
     def _initialise_weights(self):
         params = {}
         params['emb_matrix'] = self._init_weight([self.vocab_size, self.emb_dim])
-        params['mask'] = theano.shared(np.ones([self.K, self.emb_dim]))
+        params['mask'] = theano.shared(np.ones([self.K, self.emb_dim]).astype('float32'))
         params['hop_weight'] = self._init_weight([self.emb_dim, self.emb_dim])
         params['out_weight'] = self._init_weight([self.emb_dim, self.vocab_size])
         params['init_keys'] = self._init_weight([self.num_slots, self.emb_dim])
         return params
 
     def _init_weight(self, shape, name=None, scale=0.1):
-        return theano.shared(scale*np.random.normal(size=shape), name=name)
+        return theano.shared((scale*np.random.normal(size=shape)).astype('float32'), name=name)
 
     def _get_answer(self, h_T, queries, hop_wt, out_wt):
 
