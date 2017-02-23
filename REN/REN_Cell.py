@@ -20,11 +20,11 @@ class RenCell:
         self.U = self._initialize_weights(emb_dim, emb_dim, name='U')
         self.V = self._initialize_weights(emb_dim, emb_dim, name='V')
         self.W = self._initialize_weights(emb_dim, emb_dim, name='W')
-        self.a = theano.shared(np.asarray(1.0, dtype='float32'))  # Prelu gradient
+        self.a = theano.shared(np.asarray(1.0, dtype='float64'))  # Prelu gradient
         self.params = {'U': self.U, 'V': self.V, 'W': self.W, 'a': self.a}
 
     def _initialize_weights(self, inputs, outputs, name=None, scale=0.1):
-        return theano.shared((scale*np.random.randn(inputs, outputs)).astype('float32'), name=name)
+        return theano.shared((scale*np.random.randn(inputs, outputs)).astype('float64'), name=name)
 
     def _get_gate(self, S_t, H, Keys):
         """ Equation (2) in arXiv:1612.03969v1"""

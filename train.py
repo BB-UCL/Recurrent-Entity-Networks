@@ -6,9 +6,9 @@ sys.setrecursionlimit(1500)
 
 
 params = {'embeding_dimension': 100,
-          'num_slots': 20,
+          'num_slots': 2,
           'init_learning_rate': 0.01,
-          'num_epochs': 2,
+          'num_epochs': 20,
           'vocab_size': 160,
           'batch_size': 32}
 
@@ -27,7 +27,9 @@ def train(path_to_train, path_to_test, params):
                                   params['max_sent_len'])
 
     loss = 0.0
+    print('training model ' + path_to_test[12:-4])
     for i in range(params['num_epochs']):
+        print('epoch {}'.format(i))
         with open('Results/' + path_to_test[12:-4] + '.txt', 'a+') as f:
             for n, batch in enumerate(get_batch(train_data, params['batch_size'])):
                 batch_loss, accuracy = Ent_Net.train_batch(*batch)
@@ -35,10 +37,11 @@ def train(path_to_train, path_to_test, params):
                 loss = loss + (batch_loss - loss)/(params['batch_size']*1.0)
                 if n % 10 == 0:
                     test_loss, test_accuracy = Ent_Net.test_network(*test_data)
-                    f.write('{}   {}  {}  {} \n'.format(batch_loss, accuracy,
+                    print(loss, accuracy, test_loss, test_accuracy)
+                    f.write('{}   {}  {}  {} \n'.format(loss, accuracy,
                                                         test_loss, test_accuracy))
 
-    with open('Results/model' + path_to_test[12:-4] + '.save', 'wb') as f:
+    with open('Results/model/' + path_to_test[12:-4] + '.save', 'wb') as f:
         cPickle.dump(Ent_Net, f, protocol=cPickle.HIGHEST_PROTOCOL)
 
 
@@ -56,7 +59,24 @@ def extract_stories(data):
 
 
 if __name__ == "__main__":
-    data_sets = ['qa1_single-supporting-fact']
+    data_sets = ['qa1_single-supporting-fact',
+                 'qa2_two-supporting-facts',
+                 'qa3_three-supporting-facts',
+                 'qa4_two-arg-relations',
+                 'qa5_three-arg-relations',
+                 'qa6_yes-no-questions',
+                 'qa7_counting',
+                 'qa8_lists-sets',
+                 'qa9_simple-negation',
+                 'qa10_indefinite-knowledge',
+                 'qa11_basic-coreference',
+                 'qa12_conjunction',
+                 'qa13_compound-coreference',
+                 'qa14_time-reasoning',
+                 'qa15_basic-deduction',
+                 'qa16_basic-induction',
+                 'qa17_positional-reasoning',
+                 'qa19_path-finding']
 
     for data_set in data_sets:
         train('Data/Train/' + data_set + '_train.npz',
