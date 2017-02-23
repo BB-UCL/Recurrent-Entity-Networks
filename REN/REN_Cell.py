@@ -40,7 +40,8 @@ class RenCell:
     def _update_memory(self, H, _H, gate):
         """ Equation (4)/(5) in arXiv:1612.03969v1"""
         _H_prime = H + gate*_H
-        return _H_prime/(_H_prime.norm(2, axis=2).dimshuffle([0, 1, 'x']))
+        return _H_prime/(_H_prime.norm(2, axis=2).dimshuffle([0, 1, 'x']) +
+                         np.asarray(1e-7).astype('float32'))
 
     def __call__(self, inputs, init_state, init_keys, indices=-1):
         """ Take mini-bath of inputs and return the sate of the REN Cell
