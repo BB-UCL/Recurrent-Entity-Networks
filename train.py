@@ -35,6 +35,7 @@ def train(path_to_train, path_to_test, params):
                 loss = loss + (batch_loss - loss)/(params['batch_size']*1.0)
                 if n % 10 == 0:
                     test_loss, test_accuracy = Ent_Net.test_network(*test_data)
+                    print(loss, accuracy, test_loss, test_accuracy)
                     f.write('{}   {}  {}  {} \n'.format(batch_loss, accuracy,
                                                         test_loss, test_accuracy))
 
